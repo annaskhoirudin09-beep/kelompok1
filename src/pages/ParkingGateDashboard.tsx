@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt"; // Import the new MQTT hook
 
-const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt"; // MQTT over WebSockets
+const MQTT_BROKER_URL = "mqtt://broker.hivemq.com:1883"; // Changed to MQTT protocol and port 1883
 const MQTT_TOPIC = "parking/distance";
 
 const ParkingGateDashboard: React.FC = () => {
