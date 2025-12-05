@@ -3,14 +3,29 @@
 import React, { useState, useEffect } from "react";
 import ParkingGate from "@/components/ParkingGate";
 import UltrasonicSensor from "@/components/UltrasonicSensor";
-import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { useMqtt } from "@/hooks/useMqtt"; // Import the new MQTT hook
+
+const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt"; // MQTT over WebSockets
+const MQTT_TOPIC = "parking/distance";
 
 const ParkingGateDashboard: React.FC = () => {
-  const [distance, setDistance] = useState<number>(50); // Initial distance in cm
+  const { message: mqttMessage, isConnected } = useMqtt({
+    brokerUrl: MQTT_BROKER_URL,
+    topic: MQTT_TOPIC,
+  });
+  const [distance, setDistance] = useState<number>(50); // Default distance
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (mqttMessage !== null) {
+      const parsedDistance = parseInt(mqttMessage, 10);
+      if (!isNaN(parsedDistance)) {
+        setDistance(parsedDistance);
+      }
+    }
+  }, [mqttMessage]);
 
   useEffect(() => {
     if (distance < 20) {
@@ -29,26 +44,22 @@ const ParkingGateDashboard: React.FC = () => {
         <ParkingGate isOpen={isGateOpen} />
       </div>
 
-      <Card className="w-full max-w-md p-6">
+      <Card className="w-full max-w-md p-6 text-center">
         <CardHeader>
-          <CardTitle className="text-center">Simulasi Jarak Sensor</CardTitle>
+          <CardTitle>Status Koneksi MQTT</CardTitle>
         </CardHeader>
         <CardContent>
-          <Label htmlFor="distance-slider" className="block text-center mb-4 text-lg">
-            Jarak Terdeteksi: {distance} cm
-          </Label>
-          <Slider
-            id="distance-slider"
-            min={0}
-            max={100}
-            step={1}
-            value={[distance]}
-            onValueChange={(value) => setDistance(value[0])}
-            className="w-full"
-          />
-          <p className="text-sm text-gray-500 mt-4 text-center">
-            Geser slider untuk mensimulasikan jarak yang terdeteksi oleh sensor.
-            Gerbang akan terbuka jika jarak kurang dari 20 cm.
+          <p className={`text-lg font-semibold ${isConnected ? "text-green-600" : "text-red-600"}`}>
+            {isConnected ? "Terhubung" : "Terputus"}
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Mendengarkan topik: <span className="font-mono">{MQTT_TOPIC}</span>
+          </p>
+          <p className="text-sm text-gray-500">
+            Broker: <span className="font-mono">{MQTT_BROKER_URL}</span>
+          </p>
+          <p className="text-sm text-gray-500 mt-4">
+            Pastikan Node-RED Anda mengirim data jarak (angka) ke topik ini.
           </p>
         </CardContent>
       </Card>
