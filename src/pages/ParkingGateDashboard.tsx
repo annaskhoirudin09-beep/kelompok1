@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react"; // Import useRef
+import React, { useState, useEffect, useRef } from "react";
 import ParkingGate from "@/components/ParkingGate";
 import UltrasonicSensor from "@/components/UltrasonicSensor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
+import { Car, XCircle, CheckCircle } from "lucide-react"; // Import icons
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
 const MQTT_TOPICS = ["parking/distance"]; // Hanya berlangganan topik jarak
+
+const MAX_PARKING_CAPACITY = 20; // Kapasitas parkir maksimum
 
 const ParkingGateDashboard: React.FC = () => {
   const {
@@ -23,10 +26,11 @@ const ParkingGateDashboard: React.FC = () => {
 
   const [distance, setDistance] = useState<number>(50);
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
-  const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(0); // State lokal untuk counter
-  const [lastEntryTime, setLastEntryTime] = useState<Date | null>(null); // State lokal untuk waktu update
+  const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(0);
+  const [lastEntryTime, setLastEntryTime] = useState<Date | null>(null);
+  const [isParkingFull, setIsParkingFull] = useState<boolean>(false); // State baru untuk status parkir penuh
 
-  const prevIsGateOpenRef = useRef(false); // Ref untuk melacak status gerbang sebelumnya
+  const prevIsGateOpenRef = useRef(false);
 
   useEffect(() => {
     if (mqttDistance !== null) {
@@ -34,7 +38,6 @@ const ParkingGateDashboard: React.FC = () => {
     }
   }, [mqttDistance]);
 
-  // Logika untuk membuka/menutup gerbang berdasarkan jarak
   useEffect(() => {
     if (distance < 20) {
       setIsGateOpen(true);
@@ -43,32 +46,39 @@ const ParkingGateDashboard: React.FC = () => {
     }
   }, [distance]);
 
-  // Logika untuk menghitung kendaraan saat gerbang terbuka
   useEffect(() => {
     const prevIsGateOpen = prevIsGateOpenRef.current;
-    if (isGateOpen && !prevIsGateOpen) { // Deteksi transisi dari tertutup ke terbuka
+    if (isGateOpen && !prevIsGateOpen && !isParkingFull) { // Hanya tambah jika gerbang terbuka dan parkir belum penuh
       setVehicleEntryCount((prevCount) => prevCount + 1);
       setLastEntryTime(new Date());
     }
-    prevIsGateOpenRef.current = isGateOpen; // Perbarui ref untuk siklus render berikutnya
-  }, [isGateOpen]);
+    prevIsGateOpenRef.current = isGateOpen;
+  }, [isGateOpen, isParkingFull]); // Tambahkan isParkingFull sebagai dependency
+
+  // Logika untuk menentukan apakah parkir penuh
+  useEffect(() => {
+    setIsParkingFull(vehicleEntryCount >= MAX_PARKING_CAPACITY);
+  }, [vehicleEntryCount]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <h1 className="text-4xl font-bold mb-8 text-gray-800">Dashboard Gerbang Parkir</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12"> {/* Ubah grid menjadi 4 kolom */}
         <UltrasonicSensor distance={distance} />
         <ParkingGate isOpen={isGateOpen} />
 
-        {/* Card untuk Jumlah Kendaraan Masuk (berdasarkan pembukaan palang) */}
+        {/* Card untuk Jumlah Kendaraan Masuk */}
         <Card className="w-64 text-center">
           <CardHeader>
-            <CardTitle>Jumlah Kendaraan Masuk</CardTitle>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Car className="text-gray-600" />
+              Kendaraan Masuk
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-5xl font-bold">
-              {vehicleEntryCount}
+              {vehicleEntryCount} / {MAX_PARKING_CAPACITY}
             </p>
             {lastEntryTime && (
               <Badge variant="secondary" className="mt-4">
@@ -77,6 +87,30 @@ const ParkingGateDashboard: React.FC = () => {
             )}
             {vehicleEntryCount === 0 && !lastEntryTime && (
               <p className="text-sm text-gray-500 mt-2">Belum ada kendaraan masuk</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* New Card for Parking Status */}
+        <Card className="w-64 text-center">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              {isParkingFull ? (
+                <XCircle className="text-red-500" />
+              ) : (
+                <CheckCircle className="text-green-500" />
+              )}
+              Status Parkir
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-4xl font-bold ${isParkingFull ? "text-red-600" : "text-green-600"}`}>
+              {isParkingFull ? "Penuh" : "Tersedia"}
+            </p>
+            {!isParkingFull && (
+              <p className="text-sm text-gray-500 mt-2">
+                Tersisa {MAX_PARKING_CAPACITY - vehicleEntryCount} slot
+              </p>
             )}
           </CardContent>
         </Card>
