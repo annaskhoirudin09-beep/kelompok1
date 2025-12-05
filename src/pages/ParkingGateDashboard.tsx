@@ -8,12 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle } from "lucide-react"; // Import icons
+import { Car, XCircle, CheckCircle } from "lucide-react";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-const MQTT_TOPICS = ["parking/distance"]; // Hanya berlangganan topik jarak
+const MQTT_TOPICS = ["parking/distance"];
 
-const MAX_PARKING_CAPACITY = 20; // Kapasitas parkir maksimum
+const MAX_PARKING_CAPACITY = 20;
 
 const ParkingGateDashboard: React.FC = () => {
   const {
@@ -28,7 +28,7 @@ const ParkingGateDashboard: React.FC = () => {
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
   const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(0);
   const [lastEntryTime, setLastEntryTime] = useState<Date | null>(null);
-  const [isParkingFull, setIsParkingFull] = useState<boolean>(false); // State baru untuk status parkir penuh
+  const [isParkingFull, setIsParkingFull] = useState<boolean>(false);
 
   const prevIsGateOpenRef = useRef(false);
 
@@ -38,33 +38,34 @@ const ParkingGateDashboard: React.FC = () => {
     }
   }, [mqttDistance]);
 
-  useEffect(() => {
-    if (distance < 20) {
-      setIsGateOpen(true);
-    } else {
-      setIsGateOpen(false);
-    }
-  }, [distance]);
-
-  useEffect(() => {
-    const prevIsGateOpen = prevIsGateOpenRef.current;
-    if (isGateOpen && !prevIsGateOpen && !isParkingFull) { // Hanya tambah jika gerbang terbuka dan parkir belum penuh
-      setVehicleEntryCount((prevCount) => prevCount + 1);
-      setLastEntryTime(new Date());
-    }
-    prevIsGateOpenRef.current = isGateOpen;
-  }, [isGateOpen, isParkingFull]); // Tambahkan isParkingFull sebagai dependency
-
   // Logika untuk menentukan apakah parkir penuh
   useEffect(() => {
     setIsParkingFull(vehicleEntryCount >= MAX_PARKING_CAPACITY);
   }, [vehicleEntryCount]);
 
+  // Logika untuk membuka/menutup gerbang berdasarkan jarak DAN status parkir
+  useEffect(() => {
+    if (distance < 20 && !isParkingFull) { // Gerbang hanya terbuka jika jarak dekat DAN parkir tidak penuh
+      setIsGateOpen(true);
+    } else {
+      setIsGateOpen(false);
+    }
+  }, [distance, isParkingFull]); // Tambahkan isParkingFull sebagai dependency
+
+  useEffect(() => {
+    const prevIsGateOpen = prevIsGateOpenRef.current;
+    if (isGateOpen && !prevIsGateOpen) {
+      setVehicleEntryCount((prevCount) => prevCount + 1);
+      setLastEntryTime(new Date());
+    }
+    prevIsGateOpenRef.current = isGateOpen;
+  }, [isGateOpen]); // isParkingFull tidak perlu di sini karena sudah dipertimbangkan di useEffect sebelumnya
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <h1 className="text-4xl font-bold mb-8 text-gray-800">Dashboard Gerbang Parkir</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12"> {/* Ubah grid menjadi 4 kolom */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         <UltrasonicSensor distance={distance} />
         <ParkingGate isOpen={isGateOpen} />
 
@@ -91,7 +92,7 @@ const ParkingGateDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* New Card for Parking Status */}
+        {/* Card untuk Status Parkir */}
         <Card className="w-64 text-center">
           <CardHeader>
             <CardTitle className="flex items-center justify-center gap-2">
