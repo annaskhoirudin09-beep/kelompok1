@@ -5,9 +5,9 @@ import ParkingGate from "@/components/ParkingGate";
 import UltrasonicSensor from "@/components/UltrasonicSensor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { useMqtt } from "@/hooks/useMqtt"; // Import the new MQTT hook
+import { useMqtt } from "@/hooks/useMqtt";
 
-const MQTT_BROKER_URL = "mqtt://broker.hivemq.com:1883"; // Changed to MQTT protocol and port 1883
+const MQTT_BROKER_URL = "mqtt://broker.hivemq.com:1883";
 const MQTT_TOPIC = "parking/distance";
 
 const ParkingGateDashboard: React.FC = () => {
@@ -15,7 +15,7 @@ const ParkingGateDashboard: React.FC = () => {
     brokerUrl: MQTT_BROKER_URL,
     topic: MQTT_TOPIC,
   });
-  const [distance, setDistance] = useState<number>(50); // Default distance
+  const [distance, setDistance] = useState<number>(50);
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
 
   useEffect(() => {
