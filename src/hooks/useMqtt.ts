@@ -6,11 +6,23 @@ import { toast } from "sonner";
 
 interface MqttHookOptions {
   brokerUrl: string;
-  topic: string;
+  topics: string[]; // Mengubah topic menjadi array of topics
 }
 
-export function useMqtt({ brokerUrl, topic }: MqttHookOptions) {
-  const [message, setMessage] = useState<string | null>(null);
+interface MqttMessageState {
+  [topic: string]: {
+    payload: string | null;
+    timestamp: Date | null;
+  };
+}
+
+export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
+  const [messages, setMessages] = useState<MqttMessageState>(
+    topics.reduce((acc, topic) => ({
+      ...acc,
+      [topic]: { payload: null, timestamp: null },
+    }), {})
+  );
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
@@ -19,18 +31,26 @@ export function useMqtt({ brokerUrl, topic }: MqttHookOptions) {
     client.on("connect", () => {
       setIsConnected(true);
       toast.success("Terhubung ke broker MQTT!");
-      client.subscribe(topic, (err) => {
-        if (!err) {
-          toast.info(`Berlangganan topik: ${topic}`);
-        } else {
-          toast.error(`Gagal berlangganan topik ${topic}: ${err.message}`);
-        }
+      topics.forEach((topic) => {
+        client.subscribe(topic, (err) => {
+          if (!err) {
+            toast.info(`Berlangganan topik: ${topic}`);
+          } else {
+            toast.error(`Gagal berlangganan topik ${topic}: ${err.message}`);
+          }
+        });
       });
     });
 
     client.on("message", (receivedTopic, receivedMessage) => {
-      if (receivedTopic === topic) {
-        setMessage(receivedMessage.toString());
+      if (topics.includes(receivedTopic)) {
+        setMessages((prevMessages) => ({
+          ...prevMessages,
+          [receivedTopic]: {
+            payload: receivedMessage.toString(),
+            timestamp: new Date(),
+          },
+        }));
       }
     });
 
@@ -47,12 +67,21 @@ export function useMqtt({ brokerUrl, topic }: MqttHookOptions) {
 
     return () => {
       if (client.connected) {
-        client.unsubscribe(topic);
+        topics.forEach((topic) => client.unsubscribe(topic));
         client.end();
         toast.info("Koneksi MQTT dihentikan.");
       }
     };
-  }, [brokerUrl, topic]);
+  }, [brokerUrl, topics]);
 
-  return { message, isConnected };
+  const distanceMessage = messages["parking/distance"]?.payload;
+  const counterMessage = messages["parking/counter"]?.payload;
+  const counterLastUpdate = messages["parking/counter"]?.timestamp;
+
+  return {
+    distance: distanceMessage ? parseInt(distanceMessage, 10) : null,
+    counter: counterMessage ? parseInt(counterMessage, 10) : null,
+    counterLastUpdate,
+    isConnected,
+  };
 }
