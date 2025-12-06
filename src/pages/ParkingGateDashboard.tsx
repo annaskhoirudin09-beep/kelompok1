@@ -8,15 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle, LogOut } from "lucide-react"; // Import LogOut icon
-import { Button } from "@/components/ui/button"; // Import Button component
-import { useNavigate } from "react-router-dom"; // Import useNavigate
-import { toast } from "sonner"; // Import toast
+import { Car, XCircle, CheckCircle, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
 const MQTT_TOPICS = ["parking/distance"];
 
 const MAX_PARKING_CAPACITY = 20;
+const LOCAL_STORAGE_KEY_COUNT = "parking_vehicle_entry_count";
+const LOCAL_STORAGE_KEY_LAST_ENTRY = "parking_last_entry_time";
 
 const ParkingGateDashboard: React.FC = () => {
   const {
@@ -29,12 +31,21 @@ const ParkingGateDashboard: React.FC = () => {
 
   const [distance, setDistance] = useState<number>(50);
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
-  const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(0);
-  const [lastEntryTime, setLastEntryTime] = useState<Date | null>(null);
+  
+  // Inisialisasi state dari localStorage atau nilai default
+  const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(() => {
+    const storedCount = localStorage.getItem(LOCAL_STORAGE_KEY_COUNT);
+    return storedCount ? parseInt(storedCount, 10) : 0;
+  });
+  const [lastEntryTime, setLastEntryTime] = useState<Date | null>(() => {
+    const storedTime = localStorage.getItem(LOCAL_STORAGE_KEY_LAST_ENTRY);
+    return storedTime ? new Date(storedTime) : null;
+  });
+
   const [isParkingFull, setIsParkingFull] = useState<boolean>(false);
 
   const prevIsGateOpenRef = useRef(false);
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (mqttDistance !== null) {
@@ -45,28 +56,35 @@ const ParkingGateDashboard: React.FC = () => {
   // Logika untuk menentukan apakah parkir penuh
   useEffect(() => {
     setIsParkingFull(vehicleEntryCount >= MAX_PARKING_CAPACITY);
+    // Simpan vehicleEntryCount ke localStorage setiap kali berubah
+    localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, vehicleEntryCount.toString());
   }, [vehicleEntryCount]);
 
   // Logika untuk membuka/menutup gerbang berdasarkan jarak DAN status parkir
   useEffect(() => {
-    if (distance < 20 && !isParkingFull) { // Gerbang hanya terbuka jika jarak dekat DAN parkir tidak penuh
+    if (distance < 20 && !isParkingFull) {
       setIsGateOpen(true);
     } else {
       setIsGateOpen(false);
     }
-  }, [distance, isParkingFull]); // Tambahkan isParkingFull sebagai dependency
+  }, [distance, isParkingFull]);
 
   useEffect(() => {
     const prevIsGateOpen = prevIsGateOpenRef.current;
     if (isGateOpen && !prevIsGateOpen) {
-      setVehicleEntryCount((prevCount) => prevCount + 1);
-      setLastEntryTime(new Date());
+      const newCount = vehicleEntryCount + 1;
+      setVehicleEntryCount(newCount);
+      const newTime = new Date();
+      setLastEntryTime(newTime);
+      // Simpan lastEntryTime ke localStorage setiap kali berubah
+      localStorage.setItem(LOCAL_STORAGE_KEY_LAST_ENTRY, newTime.toISOString());
     }
     prevIsGateOpenRef.current = isGateOpen;
-  }, [isGateOpen]);
+  }, [isGateOpen, vehicleEntryCount]); // Tambahkan vehicleEntryCount sebagai dependency
 
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated");
+    // Tidak menghapus data kendaraan masuk dari localStorage saat logout
     toast.info("Anda telah logout.");
     navigate("/login");
   };
