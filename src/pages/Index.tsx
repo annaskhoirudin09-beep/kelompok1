@@ -10,7 +10,7 @@ const Index = () => {
         <p className="text-xl text-gray-600 mb-6">
           Mulai bangun proyek luar biasa Anda di sini!
         </p>
-        <Link to="/parking-gate">
+        <Link to="/login"> {/* Mengubah tautan ke halaman login */}
           <Button size="lg" className="px-8 py-4 text-lg">
             Lihat Dashboard Gerbang Parkir
           </Button>

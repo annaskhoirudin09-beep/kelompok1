@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle } from "lucide-react";
+import { Car, XCircle, CheckCircle, LogOut } from "lucide-react"; // Import LogOut icon
+import { Button } from "@/components/ui/button"; // Import Button component
+import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { toast } from "sonner"; // Import toast
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
 const MQTT_TOPICS = ["parking/distance"];
@@ -31,6 +34,7 @@ const ParkingGateDashboard: React.FC = () => {
   const [isParkingFull, setIsParkingFull] = useState<boolean>(false);
 
   const prevIsGateOpenRef = useRef(false);
+  const navigate = useNavigate(); // Initialize useNavigate
 
   useEffect(() => {
     if (mqttDistance !== null) {
@@ -59,11 +63,23 @@ const ParkingGateDashboard: React.FC = () => {
       setLastEntryTime(new Date());
     }
     prevIsGateOpenRef.current = isGateOpen;
-  }, [isGateOpen]); // isParkingFull tidak perlu di sini karena sudah dipertimbangkan di useEffect sebelumnya
+  }, [isGateOpen]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    toast.info("Anda telah logout.");
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <h1 className="text-4xl font-bold mb-8 text-gray-800">Dashboard Gerbang Parkir</h1>
+      <div className="w-full max-w-6xl flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold text-gray-800">Dashboard Gerbang Parkir</h1>
+        <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+          <LogOut className="h-4 w-4" />
+          Logout
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         <UltrasonicSensor distance={distance} />

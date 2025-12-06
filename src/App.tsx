@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import ParkingGateDashboard from "./pages/ParkingGateDashboard"; // Import the new dashboard
+import ParkingGateDashboard from "./pages/ParkingGateDashboard";
+import LoginPage from "./pages/LoginPage"; // Import LoginPage
+import ProtectedRoute from "./components/ProtectedRoute"; // Import ProtectedRoute
 
 const queryClient = new QueryClient();
 
@@ -17,7 +19,16 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/parking-gate" element={<ParkingGateDashboard />} /> {/* New route */}
+          <Route path="/login" element={<LoginPage />} /> {/* New login route */}
+          <Route
+            path="/parking-gate"
+            element={
+              <ProtectedRoute>
+                <ParkingGateDashboard />
+              </ProtectedRoute>
+            }
+          />{" "}
+          {/* Protected dashboard route */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
