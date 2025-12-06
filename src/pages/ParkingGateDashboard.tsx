@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useMqtt } from "@/hooks/useMqtt";
 import { format } from "date-fns";
-import { Car, XCircle, CheckCircle, LogOut } from "lucide-react";
+import { Car, XCircle, CheckCircle, LogOut, RotateCcw } from "lucide-react"; // Import RotateCcw icon
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -80,23 +80,36 @@ const ParkingGateDashboard: React.FC = () => {
       localStorage.setItem(LOCAL_STORAGE_KEY_LAST_ENTRY, newTime.toISOString());
     }
     prevIsGateOpenRef.current = isGateOpen;
-  }, [isGateOpen, vehicleEntryCount]); // Tambahkan vehicleEntryCount sebagai dependency
+  }, [isGateOpen, vehicleEntryCount]);
 
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated");
-    // Tidak menghapus data kendaraan masuk dari localStorage saat logout
     toast.info("Anda telah logout.");
     navigate("/login");
+  };
+
+  const handleReset = () => {
+    setVehicleEntryCount(0);
+    setLastEntryTime(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_COUNT);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_LAST_ENTRY);
+    toast.success("Data parkir telah direset!");
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-6xl flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold text-gray-800">Dashboard Gerbang Parkir</h1>
-        <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
+        <div className="flex gap-4"> {/* Group buttons */}
+          <Button variant="outline" onClick={handleReset} className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </Button>
+          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
