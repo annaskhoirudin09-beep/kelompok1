@@ -15,7 +15,7 @@ const UltrasonicSensor: React.FC<UltrasonicSensorProps> = ({ distance }) => {
       <CardHeader>
         <CardTitle className="flex items-center justify-center gap-2">
           <Radar className={isClose ? "text-red-500 animate-pulse" : "text-blue-500"} />
-          Sensor Ultrasonik
+          Sensor Parkir
         </CardTitle>
       </CardHeader>
       <CardContent>
