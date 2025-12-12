@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import mqtt from "mqtt";
 import { toast } from "sonner";
 
@@ -24,9 +24,25 @@ export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
     }), {})
   );
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const mqttClientRef = useRef<mqtt.MqttClient | null>(null);
+
+  // Fungsi untuk mengirim pesan ke broker MQTT
+  const publish = useCallback((topic: string, payload: string, options?: mqtt.IClientPublishOptions) => {
+    if (mqttClientRef.current && mqttClientRef.current.connected) {
+      mqttClientRef.current.publish(topic, payload, options, (err) => {
+        if (err) {
+          toast.error(`Gagal mengirim pesan ke topik ${topic}: ${err.message}`);
+        }
+        // Tidak menampilkan toast sukses untuk setiap pesan yang dikirim agar tidak terlalu banyak notifikasi
+      });
+    } else {
+      toast.error("Tidak terhubung ke broker MQTT. Gagal mengirim pesan.");
+    }
+  }, []);
 
   useEffect(() => {
     const client = mqtt.connect(brokerUrl);
+    mqttClientRef.current = client;
 
     client.on("connect", () => {
       setIsConnected(true);
@@ -43,6 +59,7 @@ export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
     });
 
     client.on("message", (receivedTopic, receivedMessage) => {
+      // Hanya memperbarui state jika topik yang diterima adalah salah satu yang kita dengarkan
       if (topics.includes(receivedTopic)) {
         setMessages((prevMessages) => ({
           ...prevMessages,
@@ -66,9 +83,9 @@ export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
     });
 
     return () => {
-      if (client.connected) {
-        topics.forEach((topic) => client.unsubscribe(topic));
-        client.end();
+      if (mqttClientRef.current && mqttClientRef.current.connected) {
+        topics.forEach((topic) => mqttClientRef.current?.unsubscribe(topic));
+        mqttClientRef.current.end();
         toast.info("Koneksi MQTT dihentikan.");
       }
     };
@@ -76,14 +93,11 @@ export function useMqtt({ brokerUrl, topics }: MqttHookOptions) {
 
   const distanceMessage = messages["parking/distance"]?.payload;
   const exitDistanceMessage = messages["parking/exitDistance"]?.payload; // New exit distance message
-  const counterMessage = messages["parking/counter"]?.payload;
-  const counterLastUpdate = messages["parking/counter"]?.timestamp;
 
   return {
     distance: distanceMessage ? parseInt(distanceMessage, 10) : null,
     exitDistance: exitDistanceMessage ? parseInt(exitDistanceMessage, 10) : null, // Return exit distance
-    counter: counterMessage ? parseInt(counterMessage, 10) : null,
-    counterLastUpdate,
     isConnected,
+    publish, // Mengembalikan fungsi publish
   };
 }

@@ -14,7 +14,21 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-const MQTT_TOPICS = ["parking/distance", "parking/exitDistance"];
+// Definisikan semua topik, baik untuk berlangganan maupun mempublikasikan
+const MQTT_TOPICS = [
+  "parking/distance",
+  "parking/exitDistance",
+  "parking/current_vehicles", // Topik untuk jumlah kendaraan saat ini
+  "parking/status",           // Topik untuk status parkir
+  "parking/daily_entry",      // Topik untuk jumlah masuk harian
+  "parking/daily_exit",       // Topik untuk jumlah keluar harian
+];
+
+// Definisikan konstanta untuk topik publikasi
+const MQTT_TOPIC_CURRENT_VEHICLES = "parking/current_vehicles";
+const MQTT_TOPIC_PARKING_STATUS = "parking/status";
+const MQTT_TOPIC_DAILY_ENTRY = "parking/daily_entry";
+const MQTT_TOPIC_DAILY_EXIT = "parking/daily_exit";
 
 const MAX_PARKING_CAPACITY = 20;
 const LOCAL_STORAGE_KEY_COUNT = "parking_vehicle_entry_count";
@@ -29,9 +43,10 @@ const ParkingGateDashboard: React.FC = () => {
     distance: mqttEntryDistance,
     exitDistance: mqttExitDistance,
     isConnected,
+    publish, // Dapatkan fungsi publish dari hook
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
-    topics: MQTT_TOPICS,
+    topics: MQTT_TOPICS, // Teruskan semua topik ke hook
   });
 
   const [entryDistance, setEntryDistance] = useState<number>(50);
@@ -56,6 +71,34 @@ const ParkingGateDashboard: React.FC = () => {
   const prevIsEntryGateOpenRef = useRef(false);
   const prevIsExitGateOpenRef = useRef(false);
   const navigate = useNavigate();
+
+  // Effect untuk mempublikasikan jumlah kendaraan saat ini ke MQTT
+  useEffect(() => {
+    if (isConnected) {
+      publish(MQTT_TOPIC_CURRENT_VEHICLES, vehicleEntryCount.toString());
+    }
+  }, [vehicleEntryCount, isConnected, publish]);
+
+  // Effect untuk mempublikasikan status parkir ke MQTT
+  useEffect(() => {
+    if (isConnected) {
+      publish(MQTT_TOPIC_PARKING_STATUS, isParkingFull ? "Penuh" : "Tersedia");
+    }
+  }, [isParkingFull, isConnected, publish]);
+
+  // Effect untuk mempublikasikan jumlah masuk harian ke MQTT
+  useEffect(() => {
+    if (isConnected) {
+      publish(MQTT_TOPIC_DAILY_ENTRY, dailyEntryCount.toString());
+    }
+  }, [dailyEntryCount, isConnected, publish]);
+
+  // Effect untuk mempublikasikan jumlah keluar harian ke MQTT
+  useEffect(() => {
+    if (isConnected) {
+      publish(MQTT_TOPIC_DAILY_EXIT, dailyExitCount.toString());
+    }
+  }, [dailyExitCount, isConnected, publish]);
 
   // Effect untuk inisialisasi hitungan harian dari localStorage atau mereset jika hari berbeda
   useEffect(() => {
