@@ -14,26 +14,30 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const MQTT_BROKER_URL = "ws://broker.hivemq.com:8000/mqtt";
-const MQTT_TOPICS = ["parking/distance", "parking/exitDistance"]; // Tambahkan topik untuk sensor keluar
+const MQTT_TOPICS = ["parking/distance", "parking/exitDistance"];
 
 const MAX_PARKING_CAPACITY = 20;
 const LOCAL_STORAGE_KEY_COUNT = "parking_vehicle_entry_count";
 const LOCAL_STORAGE_KEY_LAST_ENTRY = "parking_last_entry_time";
+const LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT = "parking_daily_entry_count";
+const LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE = "parking_daily_entry_date";
+const LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT = "parking_daily_exit_count";
+const LOCAL_STORAGE_KEY_DAILY_EXIT_DATE = "parking_daily_exit_date";
 
 const ParkingGateDashboard: React.FC = () => {
   const {
-    distance: mqttEntryDistance, // Ganti nama untuk kejelasan
-    exitDistance: mqttExitDistance, // Ambil jarak sensor keluar
+    distance: mqttEntryDistance,
+    exitDistance: mqttExitDistance,
     isConnected,
   } = useMqtt({
     brokerUrl: MQTT_BROKER_URL,
     topics: MQTT_TOPICS,
   });
 
-  const [entryDistance, setEntryDistance] = useState<number>(50); // Jarak sensor masuk
-  const [exitDistance, setExitDistance] = useState<number>(50); // Jarak sensor keluar
-  const [isEntryGateOpen, setIsEntryGateOpen] = useState<boolean>(false); // Gerbang masuk
-  const [isExitGateOpen, setIsExitGateOpen] = useState<boolean>(false); // Gerbang keluar
+  const [entryDistance, setEntryDistance] = useState<number>(50);
+  const [exitDistance, setExitDistance] = useState<number>(50);
+  const [isEntryGateOpen, setIsEntryGateOpen] = useState<boolean>(false);
+  const [isExitGateOpen, setIsExitGateOpen] = useState<boolean>(false);
   
   const [vehicleEntryCount, setVehicleEntryCount] = useState<number>(() => {
     const storedCount = localStorage.getItem(LOCAL_STORAGE_KEY_COUNT);
@@ -44,11 +48,41 @@ const ParkingGateDashboard: React.FC = () => {
     return storedTime ? new Date(storedTime) : null;
   });
 
+  const [dailyEntryCount, setDailyEntryCount] = useState<number>(0);
+  const [dailyExitCount, setDailyExitCount] = useState<number>(0);
+
   const [isParkingFull, setIsParkingFull] = useState<boolean>(false);
 
   const prevIsEntryGateOpenRef = useRef(false);
-  const prevIsExitGateOpenRef = useRef(false); // Ref untuk gerbang keluar
+  const prevIsExitGateOpenRef = useRef(false);
   const navigate = useNavigate();
+
+  // Effect untuk inisialisasi hitungan harian dari localStorage atau mereset jika hari berbeda
+  useEffect(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    // Inisialisasi daily entry count
+    const storedDailyEntryCount = localStorage.getItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT);
+    const storedDailyEntryDate = localStorage.getItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE);
+    if (storedDailyEntryDate === today && storedDailyEntryCount !== null) {
+      setDailyEntryCount(parseInt(storedDailyEntryCount, 10));
+    } else {
+      localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT, "0");
+      localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE, today);
+      setDailyEntryCount(0);
+    }
+
+    // Inisialisasi daily exit count
+    const storedDailyExitCount = localStorage.getItem(LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT);
+    const storedDailyExitDate = localStorage.getItem(LOCAL_STORAGE_KEY_DAILY_EXIT_DATE);
+    if (storedDailyExitDate === today && storedDailyExitCount !== null) {
+      setDailyExitCount(parseInt(storedDailyExitCount, 10));
+    } else {
+      localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT, "0");
+      localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_EXIT_DATE, today);
+      setDailyExitCount(0);
+    }
+  }, []); // Hanya berjalan sekali saat komponen dimuat
 
   // Update jarak sensor masuk
   useEffect(() => {
@@ -98,6 +132,14 @@ const ParkingGateDashboard: React.FC = () => {
       setLastEntryTime(newTime);
       localStorage.setItem(LOCAL_STORAGE_KEY_LAST_ENTRY, newTime.toISOString());
       toast.success("Kendaraan masuk!");
+
+      // Increment daily entry count
+      setDailyEntryCount((prev) => {
+        const updatedDailyCount = prev + 1;
+        localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT, updatedDailyCount.toString());
+        localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE, format(new Date(), "yyyy-MM-dd"));
+        return updatedDailyCount;
+      });
     }
     prevIsEntryGateOpenRef.current = isEntryGateOpen;
   }, [isEntryGateOpen, vehicleEntryCount]);
@@ -106,10 +148,18 @@ const ParkingGateDashboard: React.FC = () => {
   useEffect(() => {
     const prevIsExitGateOpen = prevIsExitGateOpenRef.current;
     if (isExitGateOpen && !prevIsExitGateOpen) {
-      const newCount = Math.max(0, vehicleEntryCount - 1); // Pastikan tidak kurang dari 0
+      const newCount = Math.max(0, vehicleEntryCount - 1);
       setVehicleEntryCount(newCount);
       localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, newCount.toString());
       toast.info("Kendaraan keluar!");
+
+      // Increment daily exit count
+      setDailyExitCount((prev) => {
+        const updatedDailyCount = prev + 1;
+        localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT, updatedDailyCount.toString());
+        localStorage.setItem(LOCAL_STORAGE_KEY_DAILY_EXIT_DATE, format(new Date(), "yyyy-MM-dd"));
+        return updatedDailyCount;
+      });
     }
     prevIsExitGateOpenRef.current = isExitGateOpen;
   }, [isExitGateOpen, vehicleEntryCount]);
@@ -123,8 +173,16 @@ const ParkingGateDashboard: React.FC = () => {
   const handleReset = () => {
     setVehicleEntryCount(0);
     setLastEntryTime(null);
+    setDailyEntryCount(0);
+    setDailyExitCount(0);
+
     localStorage.removeItem(LOCAL_STORAGE_KEY_COUNT);
     localStorage.removeItem(LOCAL_STORAGE_KEY_LAST_ENTRY);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_COUNT);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_ENTRY_DATE);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_EXIT_COUNT);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_DAILY_EXIT_DATE);
+
     toast.success("Data parkir telah direset!");
   };
 
@@ -168,8 +226,8 @@ const ParkingGateDashboard: React.FC = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 w-full max-w-6xl">
-        {/* Card untuk Jumlah Kendaraan Masuk */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 w-full max-w-6xl">
+        {/* Card untuk Jumlah Kendaraan di Parkir */}
         <Card className="text-center">
           <CardHeader>
             <CardTitle className="flex items-center justify-center gap-2">
@@ -213,6 +271,34 @@ const ParkingGateDashboard: React.FC = () => {
                 Tersisa {MAX_PARKING_CAPACITY - vehicleEntryCount} slot
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* New Card for Daily Entry Count */}
+        <Card className="text-center">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Car className="text-green-600" />
+              Masuk Hari Ini
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-5xl font-bold">{dailyEntryCount}</p>
+            <p className="text-sm text-gray-500 mt-2">Kendaraan masuk hari ini</p>
+          </CardContent>
+        </Card>
+
+        {/* New Card for Daily Exit Count */}
+        <Card className="text-center">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Car className="text-red-600" />
+              Keluar Hari Ini
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-5xl font-bold">{dailyExitCount}</p>
+            <p className="text-sm text-gray-500 mt-2">Kendaraan keluar hari ini</p>
           </CardContent>
         </Card>
       </div>
