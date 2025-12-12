@@ -113,14 +113,14 @@ const ParkingGateDashboard: React.FC = () => {
     }
   }, [entryDistance, isParkingFull]);
 
-  // Logika untuk membuka/menutup gerbang keluar berdasarkan jarak
+  // Logika untuk membuka/menutup gerbang keluar berdasarkan jarak DAN jumlah kendaraan di parkir
   useEffect(() => {
-    if (exitDistance < 20) {
+    if (exitDistance < 20 && vehicleEntryCount > 0) { // Tambahkan kondisi vehicleEntryCount > 0
       setIsExitGateOpen(true);
     } else {
       setIsExitGateOpen(false);
     }
-  }, [exitDistance]);
+  }, [exitDistance, vehicleEntryCount]); // Tambahkan vehicleEntryCount ke dependencies
 
   // Logika untuk menambah jumlah kendaraan saat gerbang masuk terbuka
   useEffect(() => {
